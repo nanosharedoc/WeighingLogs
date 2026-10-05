@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>سیستم ثبت گزارشات توزین و شستشو</title>
+  <style>
+    :root {
+      --primary: #106ebe;
+      --primary-hover: #005a9e;
+      --bg: #f3f5f8;
+      --card-bg: #ffffff;
+      --border: #d2d6dc;
+      --danger: #d13438;
+      --success: #107c10;
+    }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    body { background-color: var(--bg); margin: 0; padding: 15px; color: #201f1e; }
+    .container { max-width: 950px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
+    h2 { text-align: center; color: var(--primary); margin-top: 0; }
+    .section-title { font-weight: bold; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary); color: #323130; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; }
+    .form-group { display: flex; flex-direction: column; margin-bottom: 10px; }
+    label { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #49454f; }
+    input, select, textarea { padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(16,110,190,0.2); }
+    .time-box { display: flex; gap: 5px; align-items: center; }
+    .btn-now { background: #e1dfdd; border: none; padding: 9px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
+    .btn-now:hover { background: #c8c6c4; }
+    .zone-selector { display: flex; gap: 20px; justify-content: center; margin-bottom: 20px; background: #e8ebfa; padding: 12px; border-radius: 8px; }
+    .zone-selector label { font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-submit { background: var(--primary); color: white; border: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 25px; }
+    .btn-submit:hover { background: var(--primary-hover); }
+    .hidden { display: none !important; }
+    .error-msg { color: var(--danger); font-size: 13px; margin-top: 5px; }
+    .batch-item { margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>سیستم خوداظهاری توزین و فرآیند داروسازی</h2>
+
+  <!-- انتخاب حوزه فرآیند -->
+  <div class="zone-selector">
+    <label><input type="radio" name="zone" value="Inside" checked onchange="handleZoneChange()"> فرآیندهای داخل اتاق توزین</label>
+    <label><input type="radio" name="zone" value="Outside" onchange="handleZoneChange()"> فرآیندهای بیرون اتاق توزین</label>
+  </div>
+
+  <form id="weighingForm" onsubmit="submitForm(event)">
+    <!-- اطلاعات پایه -->
+    <div class="section-title">اطلاعات پایه</div>
+    <div class="grid">
+      <div class="form-group">
+        <label>تاریخ توزین (میلادی) *</label>
+        <input type="date" id="weighDate" required>
+      </div>
+      <div class="form-group" id="siteGroup">
+        <label>محل توزین (سایت/اتاق) *</label>
+        <select id="site"></select>
+      </div>
+      <div class="form-group">
+        <label>شیفت کاری *</label>
+        <select id="shift" required>
+          <option value="روز">روز</option>
+          <option value="شب">شب</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>نوع فرآیند *</label>
+        <select id="process" onchange="handleProcessChange()" required></select>
+      </div>
+    </div>
+
+    <!-- فیلد توضیحات سایر برای فرآیندها -->
+    <div class="form-group hidden" id="processOtherGroup">
+      <label>توضیحات فرآیند سایر *</label>
+      <input type="text" id="otherDesc" placeholder="شرح فرآیند انجام‌شده">
+    </div>
+
+    <!-- بخش داینامیک محصول و بچ (مختص توزین) -->
+    <div id="productSection" class="hidden">
+      <div class="section-title">مشخصات محصول و بچ</div>
+      <div class="grid">
+        <div class="form-group">
+          <label>نام محصول *</label>
+          <select id="product"></select>
+        </div>
+        <div class="form-group">
+          <label>بچ سایز (تعداد محصول نهایی) *</label>
+          <input type="number" id="batchSize" min="1" placeholder="مثلاً: 50000">
+        </div>
+        <div class="form-group">
+          <label>تعداد بچ *</label>
+          <input type="number" id="batchCount" min="1" max="15" value="1" oninput="renderBatchFields()">
+        </div>
+      </div>
+      <div id="batchFieldsContainer" class="grid"></div>
+    </div>
+
+    <!-- تیم اجرایی -->
+    <div class="section-title">تیم اجرایی</div>
+    <div class="grid">
+      <div class="form-group">
+        <label>اپراتور ۱ (اجباری) *</label>
+        <select id="op1" required></select>
+      </div>
+      <div class="form-group">
+        <label>اپراتور ۲</label>
+        <select id="op2" onchange="checkAssistant('op2', 'op2AssistantGroup')"></select>
+      </div>
+      <div class="form-group hidden" id="op2AssistantGroup">
+        <label>نام نیروی کمکی ۲ *</label>
+        <input type="text" id="op2Assistant" placeholder="نام و نام خانوادگی">
+      </div>
+      <div class="form-group">
+        <label>اپراتور ۳</label>
+        <select id="op3" onchange="checkAssistant('op3', 'op3AssistantGroup')"></select>
+      </div>
+      <div class="form-group hidden" id="op3AssistantGroup">
+        <label>نام نیروی کمکی ۳ *</label>
+        <input type="text" id="op3Assistant" placeholder="نام و نام خانوادگی">
+      </div>
+    </div>
+
+    <!-- مراحل زمانی پیش از فرآیند اصلی (فقط توزین) -->
+    <div id="preProcessTimesSection" class="hidden">
+      <div class="section-title">مراحل آماده‌سازی و ستاپ (قبل از شروع توزین)</div>
+      <div class="grid">
+        <div class="form-group">
+          <label>آماده‌سازی اتاق و مستندات</label>
+          <div class="time-box">
+            <input type="time" id="docStart">
+            <button type="button" class="btn-now" onclick="setNow('docStart')">NOW</button>
+            <input type="time" id="docEnd">
+            <button type="button" class="btn-now" onclick="setNow('docEnd')">NOW</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>آماده‌سازی مواد</label>
+          <div class="time-box">
+            <input type="time" id="prepStart">
+            <button type="button" class="btn-now" onclick="setNow('prepStart')">NOW</button>
+            <input type="time" id="prepEnd">
+            <button type="button" class="btn-now" onclick="setNow('prepEnd')">NOW</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>انتقال مواد</label>
+          <div class="time-box">
+            <input type="time" id="transStart">
+            <button type="button" class="btn-now" onclick="setNow('transStart')">NOW</button>
+            <input type="time" id="transEnd">
+            <button type="button" class="btn-now" onclick="setNow('transEnd')">NOW</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>چک و تأیید QC</label>
+          <div class="time-box">
+            <input type="time" id="qcStart">
+            <button type="button" class="btn-now" onclick="setNow('qcStart')">NOW</button>
+            <input type="time" id="qcEnd">
+            <button type="button" class="btn-now" onclick="setNow('qcEnd')">NOW</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- فرآیند اصلی -->
+    <div class="section-title">فرآیند اصلی</div>
+    <div class="grid">
+      <div class="form-group">
+        <label>شروع و پایان فرآیند اصلی *</label>
+        <div class="time-box">
+          <input type="time" id="procStart" required>
+          <button type="button" class="btn-now" onclick="setNow('procStart')">NOW</button>
+          <input type="time" id="procEnd" required>
+          <button type="button" class="btn-now" onclick="setNow('procEnd')">NOW</button>
+        </div>
+      </div>
+      <div class="form-group" id="cleanGroup">
+        <label>شستشو و تمیزکاری تجهیز (پایان کمپین)</label>
+        <div class="time-box">
+          <input type="time" id="cleanStart">
+          <button type="button" class="btn-now" onclick="setNow('cleanStart')">NOW</button>
+          <input type="time" id="cleanEnd">
+          <button type="button" class="btn-now" onclick="setNow('cleanEnd')">NOW</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- توقفات (Downtimes) -->
+    <div class="section-title">توقفات فرآیند (تا ۳ مورد)</div>
+    <div class="grid">
+      <!-- توقف ۱ -->
+      <div class="form-group">
+        <label>توقف ۱</label>
+        <div class="time-box">
+          <input type="time" id="stop1Start">
+          <input type="time" id="stop1End">
+        </div>
+        <select id="stop1Reason" onchange="checkStopDesc(1)" style="margin-top: 5px;"></select>
+        <input type="text" id="stop1Desc" class="hidden" placeholder="توضیح علت سایر توقف ۱" style="margin-top: 5px;">
+      </div>
+      <!-- توقف ۲ -->
+      <div class="form-group">
+        <label>توقف ۲</label>
+        <div class="time-box">
+          <input type="time" id="stop2Start">
+          <input type="time" id="stop2End">
+        </div>
+        <select id="stop2Reason" onchange="checkStopDesc(2)" style="margin-top: 5px;"></select>
+        <input type="text" id="stop2Desc" class="hidden" placeholder="توضیح علت سایر توقف ۲" style="margin-top: 5px;">
+      </div>
+      <!-- توقف ۳ -->
+      <div class="form-group">
+        <label>توقف ۳</label>
+        <div class="time-box">
+          <input type="time" id="stop3Start">
+          <input type="time" id="stop3End">
+        </div>
+        <select id="stop3Reason" onchange="checkStopDesc(3)" style="margin-top: 5px;"></select>
+        <input type="text" id="stop3Desc" class="hidden" placeholder="توضیح علت سایر توقف ۳" style="margin-top: 5px;">
+      </div>
+    </div>
+
+    <div id="validationAlert" class="error-msg"></div>
+    <button type="submit" class="btn-submit" id="submitBtn">ثبت نهایی گزارش در سامانه</button>
+  </form>
+</div>
+
+<script>
+  // آدرس وب‌اپ گوگل اسکریپت خودت رو اینجا بگذار:
+  const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+  let masterDataCache = null;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // مقداردهی پیش‌فرض تاریخ میلادی امروز (YYYY-MM-DD)
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById("weighDate").value = `${yyyy}-${mm}-${dd}`;
+
+    fetchMasterData();
+    renderBatchFields();
+  });
+
+  function setNow(id) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById(id).value = `${hh}:${mm}`;
+  }
+
+  async function fetchMasterData() {
+    try {
+      const res = await fetch(SCRIPT_URL);
+      const json = await res.json();
+      if (json.status === "success") {
+        masterDataCache = json.data;
+        populateDropdowns();
+      }
+    } catch(e) {
+      console.warn("استفاده از لیست پیش‌فرض محلی (عدم اتصال موقت):", e);
+      masterDataCache = {
+        sites: ["API Sampling", "EXP Samplnig", "API Weighing", "EXP 2 Weighing", "EXP 3 Weighing", "N4 API", "N4 EXP"],
+        insideProcesses: ["توزین مواد اولیه", "توزین اقلام بسته‌بندی", "توزین Sub & Main", "توزین هارد ژلاتین", "شستشوی ایزولاتور", "تمیزکاری LAF", "تمیزکاری تجهیز", "تمیزکاری اتاق", "نمونه برداری", "توزین درخواست", "توزین شرکت های همکار", "Re-Label", "شستشوی سه سطح", "مستندات و لاگ بوک", "سایر"],
+        outsideProcesses: ["آماده سازی فرم توزین و لیبل ها", "انتقال و آماده سازی مواد قبل از توزین", "انتقال و آماده سازی مواد بعد از توزین", "سایر"],
+        downtimeReasons: ["", "تایم استراحت و نهار", "دوره های آموزشی و جلسات", "آماده سازی فرم توزین و مستندات", "نمونه برداری همزمان توزین", "تعمیرات تجهیزات", "بازرسی", "عدم حضور نفر وابسته", "آماده نبودن ملزومات توزین", "ایراد مستندات و لیبل", "کسری مواد و اقلام حین توزین", "توزین حین فرآیند", "سایر"],
+        operators: ["", "کریمی پور", "اسکندرزاده", "پاشایی", "آبکتی", "فرجی", "دشتی", "حمزه خانی", "نیروی کمکی"],
+        products: ["قرص متفورمین ۵۰۰", "کپسول فلوکستین ۲۰", "شربت دیفن هیدرامین", "پودر بتا-لاکتام"]
+      };
+      populateDropdowns();
+    }
+  }
+
+  function populateDropdowns() {
+    fillSelect("site", masterDataCache.sites);
+    fillSelect("op1", masterDataCache.operators);
+    fillSelect("op2", masterDataCache.operators);
+    fillSelect("op3", masterDataCache.operators);
+    fillSelect("product", masterDataCache.products);
+    fillSelect("stop1Reason", masterDataCache.downtimeReasons);
+    fillSelect("stop2Reason", masterDataCache.downtimeReasons);
+    fillSelect("stop3Reason", masterDataCache.downtimeReasons);
+    handleZoneChange();
+  }
+
+  function fillSelect(elemId, list) {
+    const el = document.getElementById(elemId);
+    el.innerHTML = "";
+    list.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item;
+      opt.textContent = item === "" ? "--- انتخاب کنید ---" : item;
+      el.appendChild(opt);
+    });
+  }
+
+  function handleZoneChange() {
+    const zone = document.querySelector('input[name="zone"]:checked').value;
+    const siteGroup = document.getElementById("siteGroup");
+    
+    if (zone === "Inside") {
+      fillSelect("process", masterDataCache.insideProcesses);
+      siteGroup.classList.remove("hidden");
+    } else {
+      fillSelect("process", masterDataCache.outsideProcesses);
+      siteGroup.classList.add("hidden");
+    }
+    handleProcessChange();
+  }
+
+  function handleProcessChange() {
+    const proc = document.getElementById("process").value;
+    const isWeighing = ["توزین مواد اولیه", "توزین اقلام بسته‌بندی", "توزین Sub & Main"].includes(proc);
+    
+    document.getElementById("productSection").classList.toggle("hidden", !isWeighing);
+    document.getElementById("preProcessTimesSection").classList.toggle("hidden", !isWeighing);
+    document.getElementById("cleanGroup").classList.toggle("hidden", !isWeighing);
+    document.getElementById("processOtherGroup").classList.toggle("hidden", proc !== "سایر");
+  }
+
+  function checkAssistant(opSelectId, targetGroupId) {
+    const val = document.getElementById(opSelectId).value;
+    document.getElementById(targetGroupId).classList.toggle("hidden", val !== "نیروی کمکی");
+  }
+
+  function checkStopDesc(index) {
+    const val = document.getElementById(`stop${index}Reason`).value;
+    document.getElementById(`stop${indexDesc = 'stop' + index + 'Desc'}`).classList.toggle("hidden", val !== "سایر");
+  }
+
+  function renderBatchFields() {
+    const count = parseInt(document.getElementById("batchCount").value) || 1;
+    const container = document.getElementById("batchFieldsContainer");
+    container.innerHTML = "";
+    for (let i = 1; i <= count; i++) {
+      const div = document.createElement("div");
+      div.className = "form-group batch-item";
+      div.innerHTML = `<label>شماره بچ ${i} *</label><input type="text" class="batch-no" required placeholder="مثلاً: B24010${i}">`;
+      container.appendChild(div);
+    }
+  }
+
+  function getDiffMinutes(t1, t2) {
+    if (!t1 || !t2) return 0;
+    const [h1, m1] = t1.split(":").map(Number);
+    const [h2, m2] = t2.split(":").map(Number);
+    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+    if (diff < 0) diff += 1440;
+    return diff;
+  }
+
+  function validateTimes() {
+    const proc = document.getElementById("process").value;
+    const isWeighing = ["توزین مواد اولیه", "توزین اقلام بسته‌بندی", "توزین Sub & Main"].includes(proc);
+    const err = document.getElementById("validationAlert");
+    err.textContent = "";
+
+    if (!isWeighing) return true;
+
+    const procStart = document.getElementById("procStart").value;
+    const cleanStart = document.getElementById("cleanStart").value;
+    const procEnd = document.getElementById("procEnd").value;
+
+    const checks = [
+      { id: "prepEnd", label: "پایان آماده‌سازی مواد" },
+      { id: "qcEnd", label: "پایان چک QC" },
+      { id: "transEnd", label: "پایان انتقال" },
+      { id: "docEnd", label: "پایان مستندات و لاین‌کلیرنس" }
+    ];
+
+    for (let c of checks) {
+      const val = document.getElementById(c.id).value;
+      if (val && procStart) {
+        if (getDiffMinutes(val, procStart) > 720) {
+          err.textContent = `خطا: زمان ${c.label} نمی‌تواند بعد از شروع توزین باشد.`;
+          return false;
+        }
+      }
+    }
+
+    if (cleanStart && procEnd) {
+      if (getDiffMinutes(procEnd, cleanStart) > 720) {
+        err.textContent = "خطا: شستشو باید بعد از پایان توزین باشد.";
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  async function submitForm(e) {
+    e.preventDefault();
+    if (!validateTimes()) return;
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    btn.textContent = "در حال ارسال اطلاعات...";
+
+    const batches = [];
+    document.querySelectorAll(".batch-no").forEach(inp => {
+      if (inp.value.trim()) batches.push(inp.value.trim());
+    });
+
+    const payload = {
+      zone: document.querySelector('input[name="zone"]:checked').value,
+      weighDate: document.getElementById("weighDate").value,
+      site: document.getElementById("site").value,
+      shift: document.getElementById("shift").value,
+      process: document.getElementById("process").value,
+      otherDesc: document.getElementById("otherDesc").value,
+      product: document.getElementById("product").value,
+      batchSize: document.getElementById("batchSize").value,
+      batchCount: document.getElementById("batchCount").value,
+      batches: batches,
+      op1: document.getElementById("op1").value,
+      op2: document.getElementById("op2").value,
+      op2Assistant: document.getElementById("op2Assistant").value,
+      op3: document.getElementById("op3").value,
+      op3Assistant: document.getElementById("op3Assistant").value,
+      docStart: document.getElementById("docStart").value,
+      docEnd: document.getElementById("docEnd").value,
+      prepStart: document.getElementById("prepStart").value,
+      prepEnd: document.getElementById("prepEnd").value,
+      transStart: document.getElementById("transStart").value,
+      transEnd: document.getElementById("transEnd").value,
+      qcStart: document.getElementById("qcStart").value,
+      qcEnd: document.getElementById("qcEnd").value,
+      procStart: document.getElementById("procStart").value,
+      procEnd: document.getElementById("procEnd").value,
+      cleanStart: document.getElementById("cleanStart").value,
+      cleanEnd: document.getElementById("cleanEnd").value,
+      stop1Start: document.getElementById("stop1Start").value,
+      stop1End: document.getElementById("stop1End").value,
+      stop1Reason: document.getElementById("stop1Reason").value,
+      stop1Desc: document.getElementById("stop1Desc").value,
+      stop2Start: document.getElementById("stop2Start").value,
+      stop2End: document.getElementById("stop2End").value,
+      stop2Reason: document.getElementById("stop2Reason").value,
+      stop2Desc: document.getElementById("stop2Desc").value,
+      stop3Start: document.getElementById("stop3Start").value,
+      stop3End: document.getElementById("stop3End").value,
+      stop3Reason: document.getElementById("stop3Reason").value,
+      stop3Desc: document.getElementById("stop3Desc").value
+    };
+
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (result.status === "success") {
+        alert("گزارش با موفقیت در گوگل شیت ذخیره شد.");
+        document.getElementById("weighingForm").reset();
+        
+        // بازنشانی تاریخ امروز
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById("weighDate").value = `${yyyy}-${mm}-${dd}`;
+        
+        handleZoneChange();
+        renderBatchFields();
+      } else {
+        alert("خطا در سرور: " + result.message);
+      }
+    } catch (err) {
+      alert("خطا در ارسال داده‌ها. لطفا اتصال اینترنت را چک کنید.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "ثبت نهایی گزارش در سامانه";
+    }
+  }
+</script>
+
+</body>
+</html>
