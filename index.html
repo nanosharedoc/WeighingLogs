@@ -1,483 +1,385 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>سیستم ثبت گزارشات توزین و شستشو</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weighing Self-Report</title>
   <style>
-    :root {
-      --primary: #106ebe;
-      --primary-hover: #005a9e;
-      --bg: #f3f5f8;
-      --card-bg: #ffffff;
-      --border: #d2d6dc;
-      --danger: #d13438;
-      --success: #107c10;
-    }
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
-    body { background-color: var(--bg); margin: 0; padding: 15px; color: #201f1e; }
-    .container { max-width: 950px; margin: auto; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
-    h2 { text-align: center; color: var(--primary); margin-top: 0; }
-    .section-title { font-weight: bold; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary); color: #323130; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; }
-    .form-group { display: flex; flex-direction: column; margin-bottom: 10px; }
-    label { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #49454f; }
-    input, select, textarea { padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; }
-    input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(16,110,190,0.2); }
-    .time-box { display: flex; gap: 5px; align-items: center; }
-    .btn-now { background: #e1dfdd; border: none; padding: 9px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
-    .btn-now:hover { background: #c8c6c4; }
-    .zone-selector { display: flex; gap: 20px; justify-content: center; margin-bottom: 20px; background: #e8ebfa; padding: 12px; border-radius: 8px; }
-    .zone-selector label { font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-    .btn-submit { background: var(--primary); color: white; border: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 25px; }
-    .btn-submit:hover { background: var(--primary-hover); }
-    .hidden { display: none !important; }
-    .error-msg { color: var(--danger); font-size: 13px; margin-top: 5px; }
-    .batch-item { margin-top: 8px; }
+    body{font-family:Tahoma,Arial,sans-serif; background:#f6f7fb; margin:0}
+    .wrap{max-width:980px; margin:24px auto; padding:0 14px}
+    .card{background:#fff; border:1px solid #e7e7ee; border-radius:14px; padding:16px 16px 8px}
+    h1{font-size:18px; margin:0 0 12px}
+    h2{font-size:14px; margin:0 0 8px}
+    .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:10px}
+    .col-12{grid-column:span 12}
+    .col-6{grid-column:span 6}
+    .col-4{grid-column:span 4}
+    .col-3{grid-column:span 3}
+    label{display:block; font-size:12px; color:#333; margin:2px 0 6px}
+    input,select,textarea{width:100%; padding:10px; border:1px solid #d7d7e3; border-radius:10px; background:#fff}
+    .row{display:flex; gap:8px; align-items:center}
+    button{padding:10px 14px; border-radius:10px; border:1px solid #2f6fed; background:#2f6fed; color:#fff; cursor:pointer}
+    button.secondary{background:#fff; color:#2f6fed}
+    .muted{color:#666; font-size:12px}
+    .hr{height:1px; background:#eee; margin:10px 0}
+    .ok{color:#0a7a2f}
+    .err{color:#b00020}
+    .warn{color:#b8860b; font-size:12px}
+    .live{background:#f0f6ff; border:1px solid #d4e2ff; border-radius:12px; padding:12px}
+    .live table{width:100%; border-collapse:collapse; font-size:13px}
+    .live td{padding:4px 6px}
+    .live td:last-child{font-weight:bold; color:#1c3d8f; text-align:left; direction:ltr}
+    .live .none{color:#999; font-weight:normal}
   </style>
 </head>
 <body>
+<div class="wrap">
+  <div class="card">
+    <h1>ثبت دیجیتال توزین/شستشو</h1>
+    <div class="muted">تاریخ میلادی (YYYY-MM-DD) — ثبت در Google Sheet</div>
+    <div class="hr"></div>
 
-<div class="container">
-  <h2>سیستم خوداظهاری توزین و فرآیند داروسازی</h2>
-
-  <!-- انتخاب حوزه فرآیند -->
-  <div class="zone-selector">
-    <label><input type="radio" name="zone" value="Inside" checked onchange="handleZoneChange()"> فرآیندهای داخل اتاق توزین</label>
-    <label><input type="radio" name="zone" value="Outside" onchange="handleZoneChange()"> فرآیندهای بیرون اتاق توزین</label>
-  </div>
-
-  <form id="weighingForm" onsubmit="submitForm(event)">
-    <!-- اطلاعات پایه -->
-    <div class="section-title">اطلاعات پایه</div>
     <div class="grid">
-      <div class="form-group">
-        <label>تاریخ توزین (میلادی) *</label>
-        <input type="date" id="weighDate" required>
+      <div class="col-3">
+        <label>تاریخ توزین (میلادی)</label>
+        <input id="WeighingDate" type="date" />
       </div>
-      <div class="form-group" id="siteGroup">
-        <label>محل توزین (سایت/اتاق) *</label>
-        <select id="site"></select>
-      </div>
-      <div class="form-group">
-        <label>شیفت کاری *</label>
-        <select id="shift" required>
-          <option value="روز">روز</option>
-          <option value="شب">شب</option>
+      <div class="col-3">
+        <label>شیفت</label>
+        <select id="Shift">
+          <option value="">انتخاب...</option>
+          <option>روز</option>
+          <option>شب</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>نوع فرآیند *</label>
-        <select id="process" onchange="handleProcessChange()" required></select>
+      <div class="col-3">
+        <label>حوزه فرآیند (Zone)</label>
+        <select id="Zone">
+          <option value="">انتخاب...</option>
+          <option value="Inside">Inside</option>
+          <option value="Outside">Outside</option>
+        </select>
       </div>
-    </div>
-
-    <!-- فیلد توضیحات سایر برای فرآیندها -->
-    <div class="form-group hidden" id="processOtherGroup">
-      <label>توضیحات فرآیند سایر *</label>
-      <input type="text" id="otherDesc" placeholder="شرح فرآیند انجام‌شده">
-    </div>
-
-    <!-- بخش داینامیک محصول و بچ (مختص توزین) -->
-    <div id="productSection" class="hidden">
-      <div class="section-title">مشخصات محصول و بچ</div>
-      <div class="grid">
-        <div class="form-group">
-          <label>نام محصول *</label>
-          <select id="product"></select>
-        </div>
-        <div class="form-group">
-          <label>بچ سایز (تعداد محصول نهایی) *</label>
-          <input type="number" id="batchSize" min="1" placeholder="مثلاً: 50000">
-        </div>
-        <div class="form-group">
-          <label>تعداد بچ *</label>
-          <input type="number" id="batchCount" min="1" max="15" value="1" oninput="renderBatchFields()">
-        </div>
+      <div class="col-3">
+        <label>محل/سایت</label>
+        <select id="Site"><option value="">در حال بارگذاری...</option></select>
       </div>
-      <div id="batchFieldsContainer" class="grid"></div>
-    </div>
 
-    <!-- تیم اجرایی -->
-    <div class="section-title">تیم اجرایی</div>
-    <div class="grid">
-      <div class="form-group">
-        <label>اپراتور ۱ (اجباری) *</label>
-        <select id="op1" required></select>
+      <div class="col-4">
+        <label>نوع فرآیند (ProcessType)</label>
+        <select id="ProcessType"><option value="">ابتدا MasterData...</option></select>
       </div>
-      <div class="form-group">
+      <div class="col-4">
+        <label>نام محصول</label>
+        <select id="Product"><option value="">در حال بارگذاری...</option></select>
+      </div>
+      <div class="col-4">
+        <label>تعداد بچ</label>
+        <input id="BatchCount" type="number" min="1" step="1" placeholder="مثلاً 3" />
+      </div>
+
+      <div class="col-6">
+        <label>شماره بچ‌ها (با کاما جدا کن)</label>
+        <input id="BatchNumbers" placeholder="B24001, B24002, B24003" />
+      </div>
+      <div class="col-6">
+        <label>بچ‌سایز (اختیاری)</label>
+        <input id="BatchSize" placeholder="مثلاً 250000 (g) یا 250 (kg)" />
+      </div>
+
+      <div class="col-4">
+        <label>اپراتور ۱</label>
+        <select id="Operator1"><option value="">در حال بارگذاری...</option></select>
+      </div>
+      <div class="col-4">
         <label>اپراتور ۲</label>
-        <select id="op2" onchange="checkAssistant('op2', 'op2AssistantGroup')"></select>
+        <select id="Operator2"><option value="">در حال بارگذاری...</option></select>
       </div>
-      <div class="form-group hidden" id="op2AssistantGroup">
-        <label>نام نیروی کمکی ۲ *</label>
-        <input type="text" id="op2Assistant" placeholder="نام و نام خانوادگی">
+      <div class="col-4">
+        <label>توضیح کمکـی ۲ (اگر نیروی کمکی)</label>
+        <input id="Helper2Desc" placeholder="مثلاً نام/بخش نیروی کمکی" disabled />
       </div>
-      <div class="form-group">
+
+      <div class="col-4">
         <label>اپراتور ۳</label>
-        <select id="op3" onchange="checkAssistant('op3', 'op3AssistantGroup')"></select>
+        <select id="Operator3"><option value="">در حال بارگذاری...</option></select>
       </div>
-      <div class="form-group hidden" id="op3AssistantGroup">
-        <label>نام نیروی کمکی ۳ *</label>
-        <input type="text" id="op3Assistant" placeholder="نام و نام خانوادگی">
+      <div class="col-4">
+        <label>توضیح کمکـی ۳ (اگر نیروی کمکی)</label>
+        <input id="Helper3Desc" placeholder="مثلاً نام/بخش نیروی کمکی" disabled />
       </div>
-    </div>
 
-    <!-- مراحل زمانی پیش از فرآیند اصلی (فقط توزین) -->
-    <div id="preProcessTimesSection" class="hidden">
-      <div class="section-title">مراحل آماده‌سازی و ستاپ (قبل از شروع توزین)</div>
-      <div class="grid">
-        <div class="form-group">
-          <label>آماده‌سازی اتاق و مستندات</label>
-          <div class="time-box">
-            <input type="time" id="docStart">
-            <button type="button" class="btn-now" onclick="setNow('docStart')">NOW</button>
-            <input type="time" id="docEnd">
-            <button type="button" class="btn-now" onclick="setNow('docEnd')">NOW</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>آماده‌سازی مواد</label>
-          <div class="time-box">
-            <input type="time" id="prepStart">
-            <button type="button" class="btn-now" onclick="setNow('prepStart')">NOW</button>
-            <input type="time" id="prepEnd">
-            <button type="button" class="btn-now" onclick="setNow('prepEnd')">NOW</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>انتقال مواد</label>
-          <div class="time-box">
-            <input type="time" id="transStart">
-            <button type="button" class="btn-now" onclick="setNow('transStart')">NOW</button>
-            <input type="time" id="transEnd">
-            <button type="button" class="btn-now" onclick="setNow('transEnd')">NOW</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>چک و تأیید QC</label>
-          <div class="time-box">
-            <input type="time" id="qcStart">
-            <button type="button" class="btn-now" onclick="setNow('qcStart')">NOW</button>
-            <input type="time" id="qcEnd">
-            <button type="button" class="btn-now" onclick="setNow('qcEnd')">NOW</button>
-          </div>
-        </div>
-      </div>
-    </div>
+      <div class="col-12"><div class="hr"></div></div>
 
-    <!-- فرآیند اصلی -->
-    <div class="section-title">فرآیند اصلی</div>
-    <div class="grid">
-      <div class="form-group">
-        <label>شروع و پایان فرآیند اصلی *</label>
-        <div class="time-box">
-          <input type="time" id="procStart" required>
-          <button type="button" class="btn-now" onclick="setNow('procStart')">NOW</button>
-          <input type="time" id="procEnd" required>
-          <button type="button" class="btn-now" onclick="setNow('procEnd')">NOW</button>
+      <div class="col-4">
+        <label>شروع ستاپ</label>
+        <input id="SetupStart" type="time" />
+      </div>
+      <div class="col-4">
+        <label>پایان ستاپ</label>
+        <input id="SetupEnd" type="time" />
+      </div>
+      <div class="col-4">
+        <label>شروع فرآیند (Main)</label>
+        <input id="MainStart" type="time" />
+      </div>
+      <div class="col-4">
+        <label>پایان فرآیند (Main)</label>
+        <input id="MainEnd" type="time" />
+      </div>
+      <div class="col-4">
+        <label>شروع شستشو</label>
+        <input id="CleaningStart" type="time" />
+      </div>
+      <div class="col-4">
+        <label>پایان شستشو</label>
+        <input id="CleaningEnd" type="time" />
+      </div>
+
+      <!-- نمایش زندهٔ محاسبات -->
+      <div class="col-12">
+        <div class="live">
+          <h2>محاسبهٔ زنده</h2>
+          <table>
+            <tr><td>مدت ستاپ</td><td id="outSetup">—</td></tr>
+            <tr><td>مدت فرآیند اصلی (خالص)</td><td id="outMain">—</td></tr>
+            <tr><td>مدت شستشو</td><td id="outClean">—</td></tr>
+            <tr><td>مدت کل</td><td id="outTotal">—</td></tr>
+            <tr><td>سهم زمانی هر بچ</td><td id="outPerBatch">—</td></tr>
+          </table>
+          <div id="timeWarn" class="warn"></div>
         </div>
       </div>
-      <div class="form-group" id="cleanGroup">
-        <label>شستشو و تمیزکاری تجهیز (پایان کمپین)</label>
-        <div class="time-box">
-          <input type="time" id="cleanStart">
-          <button type="button" class="btn-now" onclick="setNow('cleanStart')">NOW</button>
-          <input type="time" id="cleanEnd">
-          <button type="button" class="btn-now" onclick="setNow('cleanEnd')">NOW</button>
+
+      <div class="col-12">
+        <div class="row">
+          <button id="btnSubmit">ثبت در شیت</button>
+          <button id="btnInit" class="secondary" type="button">ساخت/آپدیت هدرها</button>
+          <span id="msg" class="muted"></span>
         </div>
       </div>
     </div>
-
-    <!-- توقفات (Downtimes) -->
-    <div class="section-title">توقفات فرآیند (تا ۳ مورد)</div>
-    <div class="grid">
-      <!-- توقف ۱ -->
-      <div class="form-group">
-        <label>توقف ۱</label>
-        <div class="time-box">
-          <input type="time" id="stop1Start">
-          <input type="time" id="stop1End">
-        </div>
-        <select id="stop1Reason" onchange="checkStopDesc(1)" style="margin-top: 5px;"></select>
-        <input type="text" id="stop1Desc" class="hidden" placeholder="توضیح علت سایر توقف ۱" style="margin-top: 5px;">
-      </div>
-      <!-- توقف ۲ -->
-      <div class="form-group">
-        <label>توقف ۲</label>
-        <div class="time-box">
-          <input type="time" id="stop2Start">
-          <input type="time" id="stop2End">
-        </div>
-        <select id="stop2Reason" onchange="checkStopDesc(2)" style="margin-top: 5px;"></select>
-        <input type="text" id="stop2Desc" class="hidden" placeholder="توضیح علت سایر توقف ۲" style="margin-top: 5px;">
-      </div>
-      <!-- توقف ۳ -->
-      <div class="form-group">
-        <label>توقف ۳</label>
-        <div class="time-box">
-          <input type="time" id="stop3Start">
-          <input type="time" id="stop3End">
-        </div>
-        <select id="stop3Reason" onchange="checkStopDesc(3)" style="margin-top: 5px;"></select>
-        <input type="text" id="stop3Desc" class="hidden" placeholder="توضیح علت سایر توقف ۳" style="margin-top: 5px;">
-      </div>
-    </div>
-
-    <div id="validationAlert" class="error-msg"></div>
-    <button type="submit" class="btn-submit" id="submitBtn">ثبت نهایی گزارش در سامانه</button>
-  </form>
+  </div>
 </div>
 
 <script>
-  // آدرس وب‌اپ گوگل اسکریپت خودت رو اینجا بگذار:
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwCuD78pCCWX413fAWT_ZXPEzK6tee7zJg78aIisCfBsBiG1lzleWRvd6W0muf5lB2Iuw/exec";
+  // 1) لینک Web App خودت را جایگزین کن
+  const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
 
-  let masterDataCache = null;
+  const $ = (id) => document.getElementById(id);
 
-  document.addEventListener("DOMContentLoaded", () => {
-    // مقداردهی پیش‌فرض تاریخ میلادی امروز (YYYY-MM-DD)
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    document.getElementById("weighDate").value = `${yyyy}-${mm}-${dd}`;
+  async function post_(payload){
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  }
 
-    fetchMasterData();
-    renderBatchFields();
+  function setMsg(text, type){
+    const el = $("msg");
+    el.textContent = text || "";
+    el.className = type === "ok" ? "ok" : type === "err" ? "err" : "muted";
+  }
+
+  function fillSelect(id, items){
+    const sel = $(id);
+    sel.innerHTML = `<option value="">انتخاب...</option>` + items.map(x => `<option>${escapeHtml_(x)}</option>`).join("");
+  }
+
+  function escapeHtml_(s){
+    return String(s).replace(/[&<>"']/g, (m)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  function toggleHelperDesc(selectId, inputId){
+    const sel = $(selectId);
+    const inp = $(inputId);
+    const isHelper = (sel.value || "").trim() === "Nirooye Komaki";
+    inp.disabled = !isHelper;
+    if(!isHelper) inp.value = "";
+  }
+
+  // ---------- محاسبات زمانی ----------
+  // تفاضل دو ساعت با پشتیبانی عبور از نیمه‌شب.
+  // خروجی: {minutes, crossedMidnight} یا null اگر ورودی ناقص باشد.
+  function diffMinutes_(start, end){
+    if(!start || !end) return null;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    const s = sh * 60 + sm;
+    let e = eh * 60 + em;
+    let crossed = false;
+    if(e < s){ e += 24 * 60; crossed = true; } // عبور از نیمه‌شب
+    return { minutes: e - s, crossedMidnight: crossed };
+  }
+
+  // نمایش دقیقه به شکل "2 ساعت و 35 دقیقه"
+  function fmt_(m){
+    if(m === null) return null;
+    const h = Math.floor(m / 60), mm = m % 60;
+    return (h > 0 ? h + " ساعت و " : "") + mm + " دقیقه";
+  }
+
+  function recalcLive(){
+    const setup = diffMinutes_($("SetupStart").value, $("SetupEnd").value);
+    const main  = diffMinutes_($("MainStart").value, $("MainEnd").value);
+    const clean = diffMinutes_($("CleaningStart").value, $("CleaningEnd").value);
+
+    const hasAny = setup !== null || main !== null || clean !== null;
+    const set = (id, v) => { $(id).innerHTML = v !== null ? escapeHtml_(v) : '<span class="none">—</span>'; };
+
+    if(!hasAny){
+      ["outSetup","outMain","outClean","outTotal","outPerBatch"].forEach(id => $(id).innerHTML = '<span class="none">—</span>');
+      $("timeWarn").textContent = "";
+      return;
+    }
+
+    set("outSetup", fmt_(setup ? setup.minutes : null));
+    set("outMain",  fmt_(main  ? main.minutes  : null));
+    set("outClean", fmt_(clean ? clean.minutes : null));
+
+    const total = (setup ? setup.minutes : 0) + (main ? main.minutes : 0) + (clean ? clean.minutes : 0);
+    set("outTotal", fmt_(hasAny ? total : null));
+
+    // توزیع زمان کل بین بچ‌ها (منطق T/N)
+    const n = Number($("BatchCount").value);
+    if(n >= 1 && total > 0){
+      const per = total / n;
+      set("outPerBatch", fmt_(Math.round(per)) + ` (کل ÷ ${n})`);
+    } else {
+      set("outPerBatch", null);
+    }
+
+    // هشدار عبور از نیمه‌شب
+    const warns = [];
+    if(setup && setup.crossedMidnight) warns.push("ستاپ از نیمه‌شب گذشته در نظر گرفته شد.");
+    if(main  && main.crossedMidnight)  warns.push("فرآیند اصلی از نیمه‌شب گذشته در نظر گرفته شد.");
+    if(clean && clean.crossedMidnight) warns.push("شستشو از نیمه‌شب گذشته در نظر گرفته شد.");
+    $("timeWarn").textContent = warns.join(" ");
+  }
+
+  async function loadMaster(){
+    setMsg("در حال خواندن MasterData ...");
+    const r = await post_({action:"getMasterData"});
+    if(!r.ok) throw new Error(r.error || "MasterData error");
+    const d = r.data;
+
+    fillSelect("Site", d.Sites);
+    fillSelect("Product", d.Products);
+    fillSelect("Operator1", d.Operators);
+    fillSelect("Operator2", d.Operators);
+    fillSelect("Operator3", d.Operators);
+
+    // ProcessType براساس Zone
+    $("Zone").addEventListener("change", ()=>{
+      const z = $("Zone").value;
+      if(z === "Inside") fillSelect("ProcessType", d.InsideProcesses);
+      else if(z === "Outside") fillSelect("ProcessType", d.OutsideProcesses);
+      else $("ProcessType").innerHTML = `<option value="">انتخاب...</option>`;
+    });
+
+    setMsg("MasterData لود شد.", "ok");
+  }
+
+  function collectData(){
+    // محاسبات زنده برای ذخیره در شیت
+    const setup = diffMinutes_($("SetupStart").value, $("SetupEnd").value);
+    const main  = diffMinutes_($("MainStart").value, $("MainEnd").value);
+    const clean = diffMinutes_($("CleaningStart").value, $("CleaningEnd").value);
+    const total = (setup ? setup.minutes : 0) + (main ? main.minutes : 0) + (clean ? clean.minutes : 0);
+    const n = Number($("BatchCount").value);
+
+    return {
+      Timestamp: new Date().toISOString(),
+      WeighingDate: $("WeighingDate").value,
+      Zone: $("Zone").value,
+      Site: $("Site").value,
+      Shift: $("Shift").value,
+      ProcessType: $("ProcessType").value,
+      Product: $("Product").value,
+      BatchCount: $("BatchCount").value,
+      BatchNumbers: $("BatchNumbers").value,
+      BatchSize: $("BatchSize").value,
+      Operator1: $("Operator1").value,
+      Operator2: $("Operator2").value,
+      Helper2Desc: $("Helper2Desc").value,
+      Operator3: $("Operator3").value,
+      Helper3Desc: $("Helper3Desc").value,
+
+      // زمان‌های خام
+      SetupStart: $("SetupStart").value,
+      SetupEnd: $("SetupEnd").value,
+      MainStart: $("MainStart").value,
+      MainEnd: $("MainEnd").value,
+      CleaningStart: $("CleaningStart").value,
+      CleaningEnd: $("CleaningEnd").value,
+
+      // نتایج محاسبه‌شده
+      SetupDuration: setup ? setup.minutes : "",
+      MainDuration: main ? main.minutes : "",
+      CleaningDuration: clean ? clean.minutes : "",
+      TotalDuration: total || "",
+      TimePerBatch: (n >= 1 && total > 0) ? (total / n).toFixed(1) : ""
+    };
+  }
+
+  function basicValidate_(d){
+    if(!d.WeighingDate) return "تاریخ را وارد کن.";
+    if(!d.Shift) return "شیفت را انتخاب کن.";
+    if(!d.Zone) return "Zone را انتخاب کن.";
+    if(!d.Site) return "سایت را انتخاب کن.";
+    if(!d.ProcessType) return "نوع فرآیند را انتخاب کن.";
+    if(!d.Operator1) return "اپراتور ۱ الزامی است.";
+
+    // اگر فرآیند توزین است، تعداد بچ و شماره بچ‌ها را اجباری کنیم (قابل توسعه)
+    if(String(d.ProcessType).includes("توزین")) {
+      if(!d.BatchCount || Number(d.BatchCount) < 1) return "تعداد بچ را درست وارد کن.";
+      if(!d.BatchNumbers) return "شماره بچ‌ها را وارد کن.";
+    }
+    return "";
+  }
+
+  $("Operator2").addEventListener("change", ()=>toggleHelperDesc("Operator2","Helper2Desc"));
+  $("Operator3").addEventListener("change", ()=>toggleHelperDesc("Operator3","Helper3Desc"));
+
+  // محاسبهٔ زنده: با هر تغییر در زمان‌ها و تعداد بچ
+  ["SetupStart","SetupEnd","MainStart","MainEnd","CleaningStart","CleaningEnd","BatchCount"]
+    .forEach(id => $(id).addEventListener("input", recalcLive));
+  ["SetupStart","SetupEnd","MainStart","MainEnd","CleaningStart","CleaningEnd"]
+    .forEach(id => $(id).addEventListener("change", recalcLive));
+
+  $("btnInit").addEventListener("click", async ()=>{
+    try{
+      setMsg("در حال ساخت/آپدیت شیت‌ها...");
+      const r = await post_({action:"initSheets"});
+      if(!r.ok) throw new Error(r.error || "init error");
+      setMsg("هدرها و MasterData آماده شد.", "ok");
+      await loadMaster();
+    }catch(e){ setMsg(e.message, "err"); }
   });
 
-  function setNow(id) {
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    document.getElementById(id).value = `${hh}:${mm}`;
-  }
+  $("btnSubmit").addEventListener("click", async (ev)=>{
+    ev.preventDefault();
+    try{
+      const d = collectData();
+      const v = basicValidate_(d);
+      if(v) { setMsg(v, "err"); return; }
 
-  async function fetchMasterData() {
-    try {
-      const res = await fetch(SCRIPT_URL);
-      const json = await res.json();
-      if (json.status === "success") {
-        masterDataCache = json.data;
-        populateDropdowns();
-      }
-    } catch(e) {
-      console.warn("استفاده از لیست پیش‌فرض محلی (عدم اتصال موقت):", e);
-      masterDataCache = {
-        sites: ["API Sampling", "EXP Samplnig", "API Weighing", "EXP 2 Weighing", "EXP 3 Weighing", "N4 API", "N4 EXP"],
-        insideProcesses: ["توزین مواد اولیه", "توزین اقلام بسته‌بندی", "توزین Sub & Main", "توزین هارد ژلاتین", "شستشوی ایزولاتور", "تمیزکاری LAF", "تمیزکاری تجهیز", "تمیزکاری اتاق", "نمونه برداری", "توزین درخواست", "توزین شرکت های همکار", "Re-Label", "شستشوی سه سطح", "مستندات و لاگ بوک", "سایر"],
-        outsideProcesses: ["آماده سازی فرم توزین و لیبل ها", "انتقال و آماده سازی مواد قبل از توزین", "انتقال و آماده سازی مواد بعد از توزین", "سایر"],
-        downtimeReasons: ["", "تایم استراحت و نهار", "دوره های آموزشی و جلسات", "آماده سازی فرم توزین و مستندات", "نمونه برداری همزمان توزین", "تعمیرات تجهیزات", "بازرسی", "عدم حضور نفر وابسته", "آماده نبودن ملزومات توزین", "ایراد مستندات و لیبل", "کسری مواد و اقلام حین توزین", "توزین حین فرآیند", "سایر"],
-        operators: ["", "کریمی پور", "اسکندرزاده", "پاشایی", "آبکتی", "فرجی", "دشتی", "حمزه خانی", "نیروی کمکی"],
-        products: ["قرص متفورمین ۵۰۰", "کپسول فلوکستین ۲۰", "شربت دیفن هیدرامین", "پودر بتا-لاکتام"]
-      };
-      populateDropdowns();
+      setMsg("در حال ارسال...");
+      const r = await post_({action:"appendLog", data: d});
+      if(!r.ok) throw new Error(r.error || "save error");
+
+      setMsg(`ثبت شد. ردیف: ${r.appendedAtRow}`, "ok");
+    }catch(e){
+      setMsg(e.message, "err");
     }
-  }
+  });
 
-  function populateDropdowns() {
-    fillSelect("site", masterDataCache.sites);
-    fillSelect("op1", masterDataCache.operators);
-    fillSelect("op2", masterDataCache.operators);
-    fillSelect("op3", masterDataCache.operators);
-    fillSelect("product", masterDataCache.products);
-    fillSelect("stop1Reason", masterDataCache.downtimeReasons);
-    fillSelect("stop2Reason", masterDataCache.downtimeReasons);
-    fillSelect("stop3Reason", masterDataCache.downtimeReasons);
-    handleZoneChange();
-  }
-
-  function fillSelect(elemId, list) {
-    const el = document.getElementById(elemId);
-    el.innerHTML = "";
-    list.forEach(item => {
-      const opt = document.createElement("option");
-      opt.value = item;
-      opt.textContent = item === "" ? "--- انتخاب کنید ---" : item;
-      el.appendChild(opt);
-    });
-  }
-
-  function handleZoneChange() {
-    const zone = document.querySelector('input[name="zone"]:checked').value;
-    const siteGroup = document.getElementById("siteGroup");
-    
-    if (zone === "Inside") {
-      fillSelect("process", masterDataCache.insideProcesses);
-      siteGroup.classList.remove("hidden");
-    } else {
-      fillSelect("process", masterDataCache.outsideProcesses);
-      siteGroup.classList.add("hidden");
-    }
-    handleProcessChange();
-  }
-
-  function handleProcessChange() {
-    const proc = document.getElementById("process").value;
-    const isWeighing = ["توزین مواد اولیه", "توزین اقلام بسته‌بندی", "توزین Sub & Main"].includes(proc);
-    
-    document.getElementById("productSection").classList.toggle("hidden", !isWeighing);
-    document.getElementById("preProcessTimesSection").classList.toggle("hidden", !isWeighing);
-    document.getElementById("cleanGroup").classList.toggle("hidden", !isWeighing);
-    document.getElementById("processOtherGroup").classList.toggle("hidden", proc !== "سایر");
-  }
-
-  function checkAssistant(opSelectId, targetGroupId) {
-    const val = document.getElementById(opSelectId).value;
-    document.getElementById(targetGroupId).classList.toggle("hidden", val !== "نیروی کمکی");
-  }
-
-  function checkStopDesc(index) {
-    const val = document.getElementById(`stop${index}Reason`).value;
-    document.getElementById(`stop${indexDesc = 'stop' + index + 'Desc'}`).classList.toggle("hidden", val !== "سایر");
-  }
-
-  function renderBatchFields() {
-    const count = parseInt(document.getElementById("batchCount").value) || 1;
-    const container = document.getElementById("batchFieldsContainer");
-    container.innerHTML = "";
-    for (let i = 1; i <= count; i++) {
-      const div = document.createElement("div");
-      div.className = "form-group batch-item";
-      div.innerHTML = `<label>شماره بچ ${i} *</label><input type="text" class="batch-no" required placeholder="مثلاً: B24010${i}">`;
-      container.appendChild(div);
-    }
-  }
-
-  function getDiffMinutes(t1, t2) {
-    if (!t1 || !t2) return 0;
-    const [h1, m1] = t1.split(":").map(Number);
-    const [h2, m2] = t2.split(":").map(Number);
-    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-    if (diff < 0) diff += 1440;
-    return diff;
-  }
-
-  function validateTimes() {
-    const proc = document.getElementById("process").value;
-    const isWeighing = ["توزین مواد اولیه", "توزین اقلام بسته‌بندی", "توزین Sub & Main"].includes(proc);
-    const err = document.getElementById("validationAlert");
-    err.textContent = "";
-
-    if (!isWeighing) return true;
-
-    const procStart = document.getElementById("procStart").value;
-    const cleanStart = document.getElementById("cleanStart").value;
-    const procEnd = document.getElementById("procEnd").value;
-
-    const checks = [
-      { id: "prepEnd", label: "پایان آماده‌سازی مواد" },
-      { id: "qcEnd", label: "پایان چک QC" },
-      { id: "transEnd", label: "پایان انتقال" },
-      { id: "docEnd", label: "پایان مستندات و لاین‌کلیرنس" }
-    ];
-
-    for (let c of checks) {
-      const val = document.getElementById(c.id).value;
-      if (val && procStart) {
-        if (getDiffMinutes(val, procStart) > 720) {
-          err.textContent = `خطا: زمان ${c.label} نمی‌تواند بعد از شروع توزین باشد.`;
-          return false;
-        }
-      }
-    }
-
-    if (cleanStart && procEnd) {
-      if (getDiffMinutes(procEnd, cleanStart) > 720) {
-        err.textContent = "خطا: شستشو باید بعد از پایان توزین باشد.";
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  async function submitForm(e) {
-    e.preventDefault();
-    if (!validateTimes()) return;
-
-    const btn = document.getElementById("submitBtn");
-    btn.disabled = true;
-    btn.textContent = "در حال ارسال اطلاعات...";
-
-    const batches = [];
-    document.querySelectorAll(".batch-no").forEach(inp => {
-      if (inp.value.trim()) batches.push(inp.value.trim());
-    });
-
-    const payload = {
-      zone: document.querySelector('input[name="zone"]:checked').value,
-      weighDate: document.getElementById("weighDate").value,
-      site: document.getElementById("site").value,
-      shift: document.getElementById("shift").value,
-      process: document.getElementById("process").value,
-      otherDesc: document.getElementById("otherDesc").value,
-      product: document.getElementById("product").value,
-      batchSize: document.getElementById("batchSize").value,
-      batchCount: document.getElementById("batchCount").value,
-      batches: batches,
-      op1: document.getElementById("op1").value,
-      op2: document.getElementById("op2").value,
-      op2Assistant: document.getElementById("op2Assistant").value,
-      op3: document.getElementById("op3").value,
-      op3Assistant: document.getElementById("op3Assistant").value,
-      docStart: document.getElementById("docStart").value,
-      docEnd: document.getElementById("docEnd").value,
-      prepStart: document.getElementById("prepStart").value,
-      prepEnd: document.getElementById("prepEnd").value,
-      transStart: document.getElementById("transStart").value,
-      transEnd: document.getElementById("transEnd").value,
-      qcStart: document.getElementById("qcStart").value,
-      qcEnd: document.getElementById("qcEnd").value,
-      procStart: document.getElementById("procStart").value,
-      procEnd: document.getElementById("procEnd").value,
-      cleanStart: document.getElementById("cleanStart").value,
-      cleanEnd: document.getElementById("cleanEnd").value,
-      stop1Start: document.getElementById("stop1Start").value,
-      stop1End: document.getElementById("stop1End").value,
-      stop1Reason: document.getElementById("stop1Reason").value,
-      stop1Desc: document.getElementById("stop1Desc").value,
-      stop2Start: document.getElementById("stop2Start").value,
-      stop2End: document.getElementById("stop2End").value,
-      stop2Reason: document.getElementById("stop2Reason").value,
-      stop2Desc: document.getElementById("stop2Desc").value,
-      stop3Start: document.getElementById("stop3Start").value,
-      stop3End: document.getElementById("stop3End").value,
-      stop3Reason: document.getElementById("stop3Reason").value,
-      stop3Desc: document.getElementById("stop3Desc").value
-    };
-
-    try {
-      const response = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      const result = await response.json();
-      if (result.status === "success") {
-        alert("گزارش با موفقیت در گوگل شیت ذخیره شد.");
-        document.getElementById("weighingForm").reset();
-        
-        // بازنشانی تاریخ امروز
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        document.getElementById("weighDate").value = `${yyyy}-${mm}-${dd}`;
-        
-        handleZoneChange();
-        renderBatchFields();
-      } else {
-        alert("خطا در سرور: " + result.message);
-      }
-    } catch (err) {
-      alert("خطا در ارسال داده‌ها. لطفا اتصال اینترنت را چک کنید.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "ثبت نهایی گزارش در سامانه";
-    }
-  }
+  // شروع
+  loadMaster().catch(e => setMsg(e.message, "err"));
 </script>
-
 </body>
 </html>
